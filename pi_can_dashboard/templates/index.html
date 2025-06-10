@@ -111,17 +111,6 @@
   <label for="filter">Filter by label:</label>
   <select id="filter">
     <option value="all">All</option>
-    <option value="STM32 Test">STM32 Test</option>
-    <option value="High Beam">High Beam</option>
-    <option value="Battery Warning">Battery Warning</option>
-    <option value="Crash Trigger">Crash Trigger</option>
-    <option value="Temperature Sensor">Temperature Sensor</option>
-    <option value="Blinker">Blinker</option>
-    <option value="Button B1">Button B1</option>
-    <option value="LED Status">LED Status</option>
-    <option value="Right Stalk / Wiper / Lights">Right Stalk / Wiper / Lights</option>
-    <option value="Hood & Wiper Feedback">Hood & Wiper Feedback</option>
-    <option value="Blinker Ack">Blinker Ack</option>
   </select>
   <button onclick="resetFilter()">Reset</button>
 
@@ -151,69 +140,48 @@
 
     function updateDashboard(data) {
       const now = Date.now() / 1000;
-      const tiles = {
-        "STM32 Test": { icon: "🚗", status: "Offline", class: "gray" },
-        "High Beam": { icon: "💡", status: "Unknown", class: "gray" },
-        "Battery Warning": { icon: "🔋", status: "OK", class: "green" },
-        "Crash Trigger": { icon: "💥", status: "OK", class: "green" },
-        "Temperature Sensor": { icon: "🌡️", status: "?", class: "gray" },
-        "Blinker": { icon: "🔁", status: "Unknown", class: "gray" },
-        "Button B1": { icon: "🟢", status: b1ToggleState ? "PRESSED" : "Released", class: b1ToggleState ? "green" : "gray" },
-        "LED Status": { icon: "💡", status: ledState ? "ON" : "OFF", class: ledState ? "green" : "gray" },
-        "Right Stalk / Wiper / Lights": { icon: "🧼", status: "...", class: "gray" },
-        "Hood & Wiper Feedback": { icon: "🛠️", status: "...", class: "gray" },
-        "Blinker Ack": { icon: "↔️", status: "...", class: "gray" }
-      };
-
+      const tiles = {};
       const latest = {};
-      data.forEach(msg => latest[msg.label] = msg);
+
+      data.forEach(msg => {
+        latest[msg.label] = msg;
+        if (!tiles[msg.label]) tiles[msg.label] = { icon: "❓", status: "...", class: "gray" };
+      });
 
       Object.entries(latest).forEach(([label, msg]) => {
         const t = now - msg.timestamp;
         lastSeen[label] = t;
 
-        switch (label) {
-          case "STM32 Test":
-            tiles[label].status = t < 3 ? "✅ Alive" : "❌ Offline";
-            tiles[label].class = t < 3 ? "green" : "red";
-            break;
-          case "High Beam":
-            tiles[label].status = msg.data === "01" ? "ON" : "OFF";
-            tiles[label].class = msg.data === "01" ? "blue" : "gray";
-            break;
-          case "Battery Warning":
-            tiles[label].status = "⚠️ LOW";
-            tiles[label].class = "orange";
-            break;
-          case "Crash Trigger":
-            tiles[label].status = "🔴 CRASH!";
-            tiles[label].class = "red";
-            break;
-          case "Temperature Sensor":
-            const temp = (parseInt(msg.data, 16) / 256).toFixed(1);
-            tiles[label].status = `${temp} °C`;
-            tiles[label].class = "blue";
-            break;
-          case "Blinker":
-            tiles[label].status = msg.data === "01" ? "➡️ RIGHT" : "⬅️ LEFT";
-            tiles[label].class = "blue";
-            break;
-          case "Button B1":
-            b1ToggleState ^= 1;
-            tiles[label].status = b1ToggleState ? "PRESSED" : "Released";
-            tiles[label].class = b1ToggleState ? "green" : "gray";
-            break;
-          case "LED Status":
-            ledState = msg.data === "01" ? 1 : 0;
-            tiles[label].status = ledState ? "ON" : "OFF";
-            tiles[label].class = ledState ? "green" : "gray";
-            break;
-          case "Right Stalk / Wiper / Lights":
-          case "Hood & Wiper Feedback":
-          case "Blinker Ack":
-            tiles[label].status = `Data: ${msg.data}`;
-            tiles[label].class = "blue";
-            break;
+        if (label === "Button B1") {
+          b1ToggleState = msg.data === "01" ? 1 : 0;
+        }
+        if (label === "LED Status") {
+          ledState = msg.data === "01" ? 1 : 0;
+        }
+
+        tiles[label] = {
+          icon: getIcon(label),
+          status: msg.data,
+          class: "blue"
+        };
+
+        // Some overrides:
+        if (label === "Crash Trigger" && msg.data === "🔴 CRASH!") {
+          tiles[label].class = "red";
+        }
+        if (label === "Battery Warning" && msg.data.includes("LOW")) {
+          tiles[label].class = "orange";
+        }
+        if (label === "Temperature Sensor" && msg.data.includes("°C")) {
+          tiles[label].class = "blue";
+        }
+        if (label === "Button B1") {
+          tiles[label].status = b1ToggleState ? "PRESSED" : "Released";
+          tiles[label].class = b1ToggleState ? "green" : "gray";
+        }
+        if (label === "LED Status") {
+          tiles[label].status = ledState ? "ON" : "OFF";
+          tiles[label].class = ledState ? "green" : "gray";
         }
       });
 
@@ -227,6 +195,33 @@
           ${lastSeen[label] !== undefined ? `<div class="label">Seen ${Math.round(lastSeen[label])}s ago</div>` : ""}
         </div>
       `).join("");
+
+      updateFilterOptions(Object.keys(tiles));
+    }
+
+    function getIcon(label) {
+      const icons = {
+        "STM32 Test": "🚗",
+        "High Beam": "💡",
+        "Battery Warning": "🔋",
+        "Crash Trigger": "💥",
+        "Temperature Sensor": "🌡️",
+        "Blinker": "🔁",
+        "Button B1": "🟢",
+        "LED Status": "💡",
+        "Right Stalk / Wiper / Lights": "🧼",
+        "Hood & Wiper Feedback": "🛠️",
+        "Blinker Ack": "↔️"
+      };
+      return icons[label] || "❓";
+    }
+
+    function updateFilterOptions(labels) {
+      const filter = document.getElementById("filter");
+      const current = filter.value;
+      filter.innerHTML = '<option value="all">All</option>' + labels.map(label => `
+        <option value="${label}" ${label === current ? "selected" : ""}>${label}</option>`
+      ).join("");
     }
 
     function updateMessages() {
