@@ -3,7 +3,6 @@
 <head>
   <title>CAN Monitor</title>
   <style>
-    /* (your existing CSS remains unchanged) */
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
@@ -166,8 +165,10 @@
         "Blinker Ack": { icon: "↔️", status: "...", class: "gray" }
       };
 
-      data.forEach(msg => {
-        const label = msg.label;
+      const latest = {};
+      data.forEach(msg => latest[msg.label] = msg); // store only latest per label
+
+      Object.entries(latest).forEach(([label, msg]) => {
         const t = now - msg.timestamp;
         lastSeen[label] = t;
 
@@ -231,7 +232,7 @@
           updateDashboard(data);
 
           const filtered = selected === "all" ? data : data.filter(m => m.label === selected);
-          document.getElementById("output").innerHTML = filtered.map(m => `
+          document.getElementById("output").innerHTML = [...filtered].reverse().map(m => `
             <div class="message">
               ${formatTimestamp(m.timestamp)} →
               <span class="label ${getClass(m.label)}">[${m.label}]</span>
