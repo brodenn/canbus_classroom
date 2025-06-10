@@ -82,7 +82,7 @@ def can_interrupt_callback(chip, gpio, level, tick):
         print("🔥 CAN callback error:", e)
 
 # Attach the interrupt to GPIO 25
-lgpio.gpio_claim_alert(gpio_handle, 0, lgpio.LG_FALLING_EDGE, INT_PIN, -1)
+lgpio.gpio_claim_alert(gpio_handle, 0, lgpio.FALLING_EDGE, INT_PIN, -1)
 lgpio.gpio_set_alerts_func(gpio_handle, can_interrupt_callback, None)
 
 # Cleanup at exit
