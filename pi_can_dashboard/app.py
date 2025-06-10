@@ -15,12 +15,18 @@ led_state = 0
 
 # Label mapping
 ID_LABELS = {
-    "0x2c2": "Right Stalk / Wiper / Lights",
-    "0x459": "Hood & Wiper Feedback",
-    "0x451": "Blinker Ack",
+    "0x321": "STM32 Test",
+    "0x110": "High Beam",
+    "0x120": "Battery Warning",
+    "0x130": "Crash Trigger",
+    "0x140": "Temperature Sensor",
+    "0x150": "Blinker",
     "0x160": "Button B1",
     "0x170": "LED Control",
-    "0x171": "LED Status"
+    "0x171": "LED Status",
+    "0x2c2": "Right Stalk / Wiper / Lights",
+    "0x459": "Hood & Wiper Feedback",
+    "0x451": "Blinker Ack"
 }
 
 # Log file setup

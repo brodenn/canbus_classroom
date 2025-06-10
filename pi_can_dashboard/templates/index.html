@@ -119,6 +119,9 @@
     <option value="Blinker">Blinker</option>
     <option value="Button B1">Button B1</option>
     <option value="LED Status">LED Status</option>
+    <option value="Right Stalk / Wiper / Lights">Right Stalk / Wiper / Lights</option>
+    <option value="Hood & Wiper Feedback">Hood & Wiper Feedback</option>
+    <option value="Blinker Ack">Blinker Ack</option>
   </select>
   <button onclick="resetFilter()">Reset</button>
 
@@ -156,7 +159,10 @@
         "Temperature Sensor": { icon: "🌡️", status: "?", class: "gray" },
         "Blinker": { icon: "🔁", status: "Unknown", class: "gray" },
         "Button B1": { icon: "🟢", status: b1ToggleState ? "PRESSED" : "Released", class: b1ToggleState ? "green" : "gray" },
-        "LED Status": { icon: "💡", status: ledState ? "ON" : "OFF", class: ledState ? "green" : "gray" }
+        "LED Status": { icon: "💡", status: ledState ? "ON" : "OFF", class: ledState ? "green" : "gray" },
+        "Right Stalk / Wiper / Lights": { icon: "🧼", status: "...", class: "gray" },
+        "Hood & Wiper Feedback": { icon: "🛠️", status: "...", class: "gray" },
+        "Blinker Ack": { icon: "↔️", status: "...", class: "gray" }
       };
 
       data.forEach(msg => {
@@ -194,7 +200,6 @@
         }
       });
 
-      // Update LED button text/state
       const ledBtn = document.getElementById("ledToggleBtn");
       ledBtn.textContent = ledState ? "💡 Turn OFF LED" : "💡 Turn ON LED";
       ledBtn.className = ledState ? "on" : "";
