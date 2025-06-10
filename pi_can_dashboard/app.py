@@ -4,9 +4,8 @@ from collections import deque
 import can
 import csv
 import os
-import lgpio
-import time
 import atexit
+import lgpio
 
 app = Flask(__name__)
 buffer = deque(maxlen=100)
@@ -37,32 +36,32 @@ ID_LABELS = {
 LOG_PATH = "logs/can_log.csv"
 os.makedirs("logs", exist_ok=True)
 if not os.path.exists(LOG_PATH):
-    with open(LOG_PATH, "w", newline='') as f:
+    with open(LOG_PATH, "w", newline="") as f:
         csv.writer(f).writerow(["timestamp", "id", "label", "data"])
 
-def log_to_csv(msg):
-    with open(LOG_PATH, "a", newline='') as f:
+def log_to_csv(entry):
+    with open(LOG_PATH, "a", newline="") as f:
         csv.writer(f).writerow([
-            msg["timestamp"],
-            msg["id"],
-            ID_LABELS.get(msg["id"].lower(), "Unknown"),
-            msg["data"]
+            entry["timestamp"],
+            entry["id"],
+            ID_LABELS.get(entry["id"].lower(), "Unknown"),
+            entry["data"]
         ])
 
 # CAN setup
 can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
-# GPIO setup (using lgpio)
+# GPIO setup using rpi-lgpio
 INT_PIN = 25
 gpio_handle = lgpio.gpiochip_open(0)
 lgpio.gpio_claim_input(gpio_handle, INT_PIN)
 
-# Interrupt callback
+# CAN interrupt callback
 def can_interrupt_callback(chip, gpio, level, tick):
     global led_state
     try:
-        msg = can_bus.recv(timeout=0.1)
-        if msg is None:
+        msg = can_bus.recv(timeout=0.05)
+        if not msg:
             return
 
         entry = {
@@ -71,25 +70,28 @@ def can_interrupt_callback(chip, gpio, level, tick):
             "timestamp": msg.timestamp
         }
 
-        if msg.arbitration_id == LED_STATUS_ID and len(msg.data) > 0:
+        if msg.arbitration_id == LED_STATUS_ID and msg.data:
             led_state = msg.data[0]
 
         with buffer_lock:
             buffer.append(entry)
         log_to_csv(entry)
+        print("📥 CAN received:", entry)
 
     except Exception as e:
-        print(f"🔥 CAN listener error: {e}")
+        print("🔥 CAN callback error:", e)
 
-# Attach interrupt
-lgpio.gpio_set_alert_func(gpio_handle, INT_PIN, can_interrupt_callback)
+# Attach the interrupt to GPIO 25
+lgpio.gpio_claim_alert(gpio_handle, 0, lgpio.LG_FALLING_EDGE, INT_PIN, -1)
+lgpio.gpio_set_alerts_func(gpio_handle, can_interrupt_callback, None)
 
+# Cleanup at exit
 @atexit.register
 def cleanup():
-    print("🧹 Cleaning up...")
+    print("🧹 Cleaning up GPIO")
     lgpio.gpiochip_close(gpio_handle)
-    can_bus.shutdown()
 
+# Flask routes
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -98,6 +100,7 @@ def index():
 def api_can():
     with buffer_lock:
         data = list(buffer)
+
     def label_msg(msg):
         id_lower = msg["id"].lower()
         return {
@@ -106,6 +109,7 @@ def api_can():
             "data": msg["data"],
             "timestamp": msg["timestamp"]
         }
+
     return jsonify([label_msg(m) for m in data])
 
 @app.route("/api/led", methods=["POST"])
@@ -121,6 +125,7 @@ def toggle_led():
         print(f"❌ CAN send failed: {e}")
         return "CAN send failed", 500
 
+# Run server
 if __name__ == "__main__":
-    print("🚀 Starting Flask CAN Dashboard with lgpio INT on GPIO 25")
+    print("🚀 Starting Flask CAN Dashboard with rpi-lgpio on GPIO 25")
     app.run(host="0.0.0.0", port=5000)
