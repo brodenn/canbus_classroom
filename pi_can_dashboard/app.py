@@ -51,17 +51,14 @@ def log_to_csv(entry):
 # CAN setup
 can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
-# GPIO setup using rpi-lgpio
+# GPIO setup with rpi-lgpio
 INT_PIN = 25
 gpio_handle = lgpio.gpiochip_open(0)
 lgpio.gpio_claim_input(gpio_handle, INT_PIN)
 
-# CAN interrupt callback
+# Interrupt callback
 def can_interrupt_callback(chip, gpio, level, tick):
     global led_state
-    if level != 0:
-        return  # We only care about falling edges (level==0)
-
     try:
         msg = can_bus.recv(timeout=0.05)
         if not msg:
@@ -84,11 +81,11 @@ def can_interrupt_callback(chip, gpio, level, tick):
     except Exception as e:
         print("🔥 CAN callback error:", e)
 
-# Attach the interrupt on GPIO 25 with correct parameters
-lgpio.gpio_claim_alert(gpio_handle, lgpio.SET_PULL_UP, lgpio.FALLING_EDGE, INT_PIN, -1)
+# Attach interrupt correctly
+lgpio.gpio_claim_alert(gpio_handle, lgpio.SET_PULL_UP, INT_PIN, lgpio.FALLING_EDGE)
 lgpio.set_alert_func(gpio_handle, INT_PIN, can_interrupt_callback)
 
-# Cleanup on exit
+# Cleanup at exit
 @atexit.register
 def cleanup():
     print("🧹 Cleaning up GPIO")
