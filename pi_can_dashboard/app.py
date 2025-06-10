@@ -62,6 +62,7 @@ def can_listener():
                 "timestamp": msg.timestamp
             }
 
+            # Update LED state if received
             if msg.arbitration_id == LED_STATUS_ID and msg.data:
                 led_state = msg.data[0]
 

@@ -166,7 +166,7 @@
       };
 
       const latest = {};
-      data.forEach(msg => latest[msg.label] = msg); // store only latest per label
+      data.forEach(msg => latest[msg.label] = msg);
 
       Object.entries(latest).forEach(([label, msg]) => {
         const t = now - msg.timestamp;
@@ -207,6 +207,12 @@
             ledState = msg.data === "01" ? 1 : 0;
             tiles[label].status = ledState ? "ON" : "OFF";
             tiles[label].class = ledState ? "green" : "gray";
+            break;
+          case "Right Stalk / Wiper / Lights":
+          case "Hood & Wiper Feedback":
+          case "Blinker Ack":
+            tiles[label].status = `Data: ${msg.data}`;
+            tiles[label].class = "blue";
             break;
         }
       });
@@ -258,7 +264,7 @@
       setTimeout(pollLoop, 250);
     }
 
-    pollLoop(); // Start polling loop
+    pollLoop();
   </script>
 </body>
 </html>
