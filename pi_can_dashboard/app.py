@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify, request
-from threading import Thread
+from threading import Lock
 from collections import deque
 import can
 import csv
@@ -10,13 +10,14 @@ import atexit
 
 app = Flask(__name__)
 buffer = deque(maxlen=100)
+buffer_lock = Lock()
 
 # CAN constants
 LED_CONTROL_ID = 0x170
 LED_STATUS_ID = 0x171
 led_state = 0
 
-# Label mapping (lowercase keys)
+# Label mapping
 ID_LABELS = {
     "0x321": "STM32 Test",
     "0x110": "High Beam",
@@ -32,7 +33,7 @@ ID_LABELS = {
     "0x451": "Blinker Ack"
 }
 
-# Setup logging
+# Logging
 LOG_PATH = "logs/can_log.csv"
 os.makedirs("logs", exist_ok=True)
 if not os.path.exists(LOG_PATH):
@@ -48,53 +49,40 @@ def log_to_csv(msg):
             msg["data"]
         ])
 
-# CAN interface
+# CAN setup
 can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
-# GPIO for interrupt from MCP2515 (INT → GPIO25)
+# GPIO setup
 INT_PIN = 25
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(INT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-def can_listener():
+# CAN interrupt callback
+def can_interrupt_callback(channel):
     global led_state
+    try:
+        msg = can_bus.recv(timeout=0.1)
+        if msg is None:
+            return
 
-    print("🔧 CAN listener started (with GPIO INT pin)...")
+        entry = {
+            "id": hex(msg.arbitration_id),
+            "data": msg.data.hex(),
+            "timestamp": msg.timestamp
+        }
 
-    while True:
-        try:
-            GPIO.wait_for_edge(INT_PIN, GPIO.FALLING)
+        if msg.arbitration_id == LED_STATUS_ID and len(msg.data) > 0:
+            led_state = msg.data[0]
 
-            msg = can_bus.recv(timeout=0.1)
-            if msg is None:
-                print("⚠️ No CAN message received.")
-                continue
-
-            # Extract safely
-            try:
-                msg_id = hex(msg.arbitration_id)
-                msg_data = msg.data.hex()
-                timestamp = msg.timestamp
-            except Exception as e:
-                print(f"❌ Error decoding message: {e}")
-                continue
-
-            entry = {
-                "id": msg_id,
-                "data": msg_data,
-                "timestamp": timestamp
-            }
-
-            print(f"📥 CAN received: {entry}")
+        with buffer_lock:
             buffer.append(entry)
-            log_to_csv(entry)
+        log_to_csv(entry)
 
-            if msg.arbitration_id == LED_STATUS_ID and len(msg.data) > 0:
-                led_state = msg.data[0]
+    except Exception as e:
+        print(f"🔥 CAN listener error: {e}")
 
-        except Exception as e:
-            print(f"🔥 CAN listener error: {e}")
-            time.sleep(0.05)
+# Attach interrupt
+GPIO.add_event_detect(INT_PIN, GPIO.FALLING, callback=can_interrupt_callback, bouncetime=5)
 
 @atexit.register
 def cleanup():
@@ -106,6 +94,8 @@ def index():
 
 @app.route("/api/can")
 def api_can():
+    with buffer_lock:
+        data = list(buffer)
     def label_msg(msg):
         id_lower = msg["id"].lower()
         return {
@@ -114,7 +104,7 @@ def api_can():
             "data": msg["data"],
             "timestamp": msg["timestamp"]
         }
-    return jsonify([label_msg(m) for m in buffer])
+    return jsonify([label_msg(m) for m in data])
 
 @app.route("/api/led", methods=["POST"])
 def toggle_led():
@@ -130,5 +120,5 @@ def toggle_led():
         return "CAN send failed", 500
 
 if __name__ == "__main__":
-    Thread(target=can_listener, daemon=True).start()
+    print("🚀 Starting Flask CAN Dashboard with INT pin on GPIO 25")
     app.run(host="0.0.0.0", port=5000)
