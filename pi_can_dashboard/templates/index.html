@@ -30,6 +30,9 @@
     .Blinker { background-color: #6f42c1; }
     .B1 { background-color: #28a745; }
     .LED { background-color: #ff9900; }
+    .Stalk { background-color: #17a2b8; }
+    .Hood { background-color: #6c757d; }
+    .Ack { background-color: #343a40; }
     .Unknown { background-color: #aaa; }
 
     #filter {
@@ -111,17 +114,17 @@
   <label for="filter">Filter by label:</label>
   <select id="filter">
     <option value="all">All</option>
-    <option value="STM32 Test">STM32 Test</option>
-    <option value="High Beam">High Beam</option>
-    <option value="Battery Warning">Battery Warning</option>
-    <option value="Crash Trigger">Crash Trigger</option>
-    <option value="Temperature Sensor">Temperature Sensor</option>
-    <option value="Blinker">Blinker</option>
-    <option value="Button B1">Button B1</option>
-    <option value="LED Status">LED Status</option>
-    <option value="Right Stalk / Wiper / Lights">Right Stalk / Wiper / Lights</option>
-    <option value="Hood & Wiper Feedback">Hood & Wiper Feedback</option>
-    <option value="Blinker Ack">Blinker Ack</option>
+    <option>STM32 Test</option>
+    <option>High Beam</option>
+    <option>Battery Warning</option>
+    <option>Crash Trigger</option>
+    <option>Temperature Sensor</option>
+    <option>Blinker</option>
+    <option>Button B1</option>
+    <option>LED Status</option>
+    <option>Right Stalk / Wiper / Lights</option>
+    <option>Hood & Wiper Feedback</option>
+    <option>Blinker Ack</option>
   </select>
   <button onclick="resetFilter()">Reset</button>
 
@@ -143,6 +146,9 @@
       if (label.includes("Battery")) return "Battery";
       if (label.includes("Crash")) return "Crash";
       if (label.includes("Temperature")) return "Temp";
+      if (label.includes("Blinker Ack")) return "Ack";
+      if (label.includes("Right Stalk")) return "Stalk";
+      if (label.includes("Hood")) return "Hood";
       if (label.includes("Blinker")) return "Blinker";
       if (label.includes("Button B1")) return "B1";
       if (label.includes("LED Status")) return "LED";
@@ -197,6 +203,12 @@
           ledState = msg.data === "01" ? 1 : 0;
           tiles[label].status = ledState ? "ON" : "OFF";
           tiles[label].class = ledState ? "green" : "gray";
+        } else if (label === "Right Stalk / Wiper / Lights") {
+          tiles[label].status = msg.data;
+        } else if (label === "Hood & Wiper Feedback") {
+          tiles[label].status = msg.data;
+        } else if (label === "Blinker Ack") {
+          tiles[label].status = msg.data;
         }
       });
 

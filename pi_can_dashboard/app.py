@@ -13,7 +13,7 @@ LED_CONTROL_ID = 0x170
 LED_STATUS_ID = 0x171
 led_state = 0
 
-# Label mapping
+# Label mapping (all lowercase keys for consistency)
 ID_LABELS = {
     "0x321": "STM32 Test",
     "0x110": "High Beam",
@@ -43,7 +43,7 @@ def log_to_csv(msg):
         writer.writerow([
             msg["timestamp"],
             msg["id"],
-            ID_LABELS.get(msg["id"], "Unknown"),
+            ID_LABELS.get(msg["id"].lower(), "Unknown"),  # Normalize for logging
             msg["data"]
         ])
 
@@ -73,9 +73,10 @@ def index():
 @app.route("/api/can")
 def api_can():
     def label_msg(msg):
+        id_lower = msg["id"].lower()  # Normalize ID for label matching
         return {
             "id": msg["id"],
-            "label": ID_LABELS.get(msg["id"], "Unknown"),
+            "label": ID_LABELS.get(id_lower, "Unknown"),
             "data": msg["data"],
             "timestamp": msg["timestamp"]
         }
