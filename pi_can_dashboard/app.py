@@ -52,7 +52,7 @@ def log_to_csv(msg):
 can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
 # GPIO for interrupt from MCP2515 (INT → GPIO25)
-INT_PIN = 25
+INT_PIN = 8
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(INT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
