@@ -4,7 +4,7 @@ from collections import deque
 import can
 import csv
 import os
-import RPi.GPIO as GPIO
+import lgpio
 import time
 import atexit
 
@@ -52,13 +52,13 @@ def log_to_csv(msg):
 # CAN setup
 can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
-# GPIO setup
+# GPIO setup (using lgpio)
 INT_PIN = 25
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(INT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+gpio_handle = lgpio.gpiochip_open(0)
+lgpio.gpio_claim_input(gpio_handle, INT_PIN)
 
-# CAN interrupt callback
-def can_interrupt_callback(channel):
+# Interrupt callback
+def can_interrupt_callback(chip, gpio, level, tick):
     global led_state
     try:
         msg = can_bus.recv(timeout=0.1)
@@ -82,11 +82,13 @@ def can_interrupt_callback(channel):
         print(f"🔥 CAN listener error: {e}")
 
 # Attach interrupt
-GPIO.add_event_detect(INT_PIN, GPIO.FALLING, callback=can_interrupt_callback, bouncetime=5)
+lgpio.gpio_set_alert_func(gpio_handle, INT_PIN, can_interrupt_callback)
 
 @atexit.register
 def cleanup():
-    GPIO.cleanup()
+    print("🧹 Cleaning up...")
+    lgpio.gpiochip_close(gpio_handle)
+    can_bus.shutdown()
 
 @app.route("/")
 def index():
@@ -120,5 +122,5 @@ def toggle_led():
         return "CAN send failed", 500
 
 if __name__ == "__main__":
-    print("🚀 Starting Flask CAN Dashboard with INT pin on GPIO 25")
+    print("🚀 Starting Flask CAN Dashboard with lgpio INT on GPIO 25")
     app.run(host="0.0.0.0", port=5000)
