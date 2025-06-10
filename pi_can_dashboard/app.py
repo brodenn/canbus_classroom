@@ -58,29 +58,43 @@ GPIO.setup(INT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 def can_listener():
     global led_state
-    while True:
-        GPIO.wait_for_edge(INT_PIN, GPIO.FALLING)
 
+    print("🔧 CAN listener started (with GPIO INT pin)...")
+
+    while True:
         try:
+            GPIO.wait_for_edge(INT_PIN, GPIO.FALLING)
+
             msg = can_bus.recv(timeout=0.1)
             if msg is None:
+                print("⚠️ No CAN message received.")
+                continue
+
+            # Extract safely
+            try:
+                msg_id = hex(msg.arbitration_id)
+                msg_data = msg.data.hex()
+                timestamp = msg.timestamp
+            except Exception as e:
+                print(f"❌ Error decoding message: {e}")
                 continue
 
             entry = {
-                "id": hex(msg.arbitration_id),
-                "data": msg.data.hex(),
-                "timestamp": msg.timestamp
+                "id": msg_id,
+                "data": msg_data,
+                "timestamp": timestamp
             }
+
+            print(f"📥 CAN received: {entry}")
+            buffer.append(entry)
+            log_to_csv(entry)
 
             if msg.arbitration_id == LED_STATUS_ID and len(msg.data) > 0:
                 led_state = msg.data[0]
 
-            buffer.append(entry)
-            log_to_csv(entry)
-
         except Exception as e:
-            print(f"[CAN ERROR] {e}")
-            time.sleep(0.01)
+            print(f"🔥 CAN listener error: {e}")
+            time.sleep(0.05)
 
 @atexit.register
 def cleanup():
