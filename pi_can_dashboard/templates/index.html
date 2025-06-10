@@ -3,6 +3,7 @@
 <head>
   <title>CAN Monitor</title>
   <style>
+    /* (your existing CSS remains unchanged) */
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
@@ -170,42 +171,49 @@
         const t = now - msg.timestamp;
         lastSeen[label] = t;
 
-        if (label === "STM32 Test") {
-          tiles[label].status = t < 3 ? "✅ Alive" : "❌ Offline";
-          tiles[label].class = t < 3 ? "green" : "red";
-        } else if (label === "High Beam") {
-          tiles[label].status = msg.data === "01" ? "ON" : "OFF";
-          tiles[label].class = msg.data === "01" ? "blue" : "gray";
-        } else if (label === "Battery Warning") {
-          tiles[label].status = "⚠️ LOW";
-          tiles[label].class = "orange";
-        } else if (label === "Crash Trigger") {
-          tiles[label].status = "🔴 CRASH!";
-          tiles[label].class = "red";
-        } else if (label === "Temperature Sensor") {
-          const temp = (parseInt(msg.data, 16) / 256).toFixed(1);
-          tiles[label].status = `${temp} °C`;
-          tiles[label].class = "blue";
-        } else if (label === "Blinker") {
-          tiles[label].status = msg.data === "01" ? "➡️ RIGHT" : "⬅️ LEFT";
-          tiles[label].class = "blue";
-        } else if (label === "Button B1") {
-          b1ToggleState ^= 1;
-          tiles[label].status = b1ToggleState ? "PRESSED" : "Released";
-          tiles[label].class = b1ToggleState ? "green" : "gray";
-        } else if (label === "LED Status") {
-          ledState = msg.data === "01" ? 1 : 0;
-          tiles[label].status = ledState ? "ON" : "OFF";
-          tiles[label].class = ledState ? "green" : "gray";
+        switch (label) {
+          case "STM32 Test":
+            tiles[label].status = t < 3 ? "✅ Alive" : "❌ Offline";
+            tiles[label].class = t < 3 ? "green" : "red";
+            break;
+          case "High Beam":
+            tiles[label].status = msg.data === "01" ? "ON" : "OFF";
+            tiles[label].class = msg.data === "01" ? "blue" : "gray";
+            break;
+          case "Battery Warning":
+            tiles[label].status = "⚠️ LOW";
+            tiles[label].class = "orange";
+            break;
+          case "Crash Trigger":
+            tiles[label].status = "🔴 CRASH!";
+            tiles[label].class = "red";
+            break;
+          case "Temperature Sensor":
+            const temp = (parseInt(msg.data, 16) / 256).toFixed(1);
+            tiles[label].status = `${temp} °C`;
+            tiles[label].class = "blue";
+            break;
+          case "Blinker":
+            tiles[label].status = msg.data === "01" ? "➡️ RIGHT" : "⬅️ LEFT";
+            tiles[label].class = "blue";
+            break;
+          case "Button B1":
+            b1ToggleState ^= 1;
+            tiles[label].status = b1ToggleState ? "PRESSED" : "Released";
+            tiles[label].class = b1ToggleState ? "green" : "gray";
+            break;
+          case "LED Status":
+            ledState = msg.data === "01" ? 1 : 0;
+            tiles[label].status = ledState ? "ON" : "OFF";
+            tiles[label].class = ledState ? "green" : "gray";
+            break;
         }
       });
 
-      const ledBtn = document.getElementById("ledToggleBtn");
-      ledBtn.textContent = ledState ? "💡 Turn OFF LED" : "💡 Turn ON LED";
-      ledBtn.className = ledState ? "on" : "";
+      document.getElementById("ledToggleBtn").textContent = ledState ? "💡 Turn OFF LED" : "💡 Turn ON LED";
+      document.getElementById("ledToggleBtn").className = ledState ? "on" : "";
 
-      const tileDiv = document.getElementById("statusTiles");
-      tileDiv.innerHTML = Object.entries(tiles).map(([label, val]) => `
+      document.getElementById("statusTiles").innerHTML = Object.entries(tiles).map(([label, val]) => `
         <div class="tile">
           <h3>${val.icon} ${label}</h3>
           <div class="status ${val.class}">${val.status}</div>
@@ -217,20 +225,19 @@
     function updateMessages() {
       const selected = document.getElementById("filter").value;
 
-      fetch("/api/can")
+      return fetch("/api/can")
         .then(res => res.json())
         .then(data => {
           updateDashboard(data);
 
           const filtered = selected === "all" ? data : data.filter(m => m.label === selected);
-          document.getElementById("output").innerHTML =
-            filtered.map(m => `
-              <div class="message">
-                ${formatTimestamp(m.timestamp)} →
-                <span class="label ${getClass(m.label)}">[${m.label}]</span>
-                ID: ${m.id} = ${m.data}
-              </div>
-            `).join("");
+          document.getElementById("output").innerHTML = filtered.map(m => `
+            <div class="message">
+              ${formatTimestamp(m.timestamp)} →
+              <span class="label ${getClass(m.label)}">[${m.label}]</span>
+              ID: ${m.id} = ${m.data}
+            </div>
+          `).join("");
         });
     }
 
@@ -242,14 +249,15 @@
     document.getElementById("filter").addEventListener("change", updateMessages);
     document.getElementById("ledToggleBtn").addEventListener("click", () => {
       fetch("/api/led", { method: "POST" })
-        .then(res => {
-          if (res.ok) console.log("LED toggle sent");
-          else console.error("LED toggle failed");
-        });
+        .then(res => res.ok && console.log("LED toggle sent"));
     });
 
-    updateMessages();
-    setInterval(updateMessages, 500);
+    async function pollLoop() {
+      await updateMessages();
+      setTimeout(pollLoop, 250);
+    }
+
+    pollLoop(); // Start polling loop
   </script>
 </body>
 </html>
