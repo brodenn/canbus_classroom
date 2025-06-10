@@ -43,11 +43,11 @@ def log_to_csv(msg):
         writer.writerow([
             msg["timestamp"],
             msg["id"],
-            ID_LABELS.get(msg["id"].lower(), "Unknown"),  # Normalize for logging
+            ID_LABELS.get(msg["id"].lower(), "Unknown"),
             msg["data"]
         ])
 
-# Persistent CAN bus
+# CAN interface
 can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
 def can_listener():
@@ -73,14 +73,63 @@ def index():
 @app.route("/api/can")
 def api_can():
     def label_msg(msg):
-        id_lower = msg["id"].lower()  # Normalize ID for label matching
+        id_lower = msg["id"].lower()
+        label = ID_LABELS.get(id_lower, "Unknown")
+        decoded = decode_data(id_lower, msg["data"])
         return {
             "id": msg["id"],
-            "label": ID_LABELS.get(id_lower, "Unknown"),
-            "data": msg["data"],
+            "label": label,
+            "data": decoded,
             "timestamp": msg["timestamp"]
         }
     return jsonify([label_msg(m) for m in buffer])
+
+def decode_data(id_str, hex_data):
+    try:
+        bytes_list = [hex_data[i:i+2] for i in range(0, len(hex_data), 2)]
+        if id_str == "0x2c2":
+            status = []
+            if len(bytes_list) >= 2:
+                b0 = bytes_list[0].lower()
+                b1 = bytes_list[1].lower()
+                if b0 == "01": status.append("⬅️ Left")
+                elif b0 == "02": status.append("➡️ Right")
+                elif b0 == "08": status.append("💡 High Beam")
+                elif b0 == "04": status.append("🔦 Flash")
+                elif b0 == "00": status.append("Neutral")
+                if b0 == "02" and b1 == "88": status.append("🌀 Wiper High")
+                elif b0 == "02" and b1 == "85": status.append("🧹 Wiper Low")
+                elif b0 == "00" and b1 == "82": status.append("🌧️ Auto Wiper")
+            return " | ".join(status) or hex_data
+        elif id_str == "0x459":
+            if hex_data == "8800":
+                return "🔒 Hood Closed"
+            elif hex_data == "8804":
+                return "🛑 Hood Open"
+            elif hex_data == "8120":
+                return "🌀 Wiping Active"
+            return hex_data
+        elif id_str == "0x451":
+            if len(bytes_list) >= 2:
+                b1 = bytes_list[1].lower()
+                if b1 == "81": return "⬅️ Left Ack"
+                elif b1 == "82": return "➡️ Right Ack"
+                elif b1 == "80": return "↔️ None"
+            return hex_data
+        elif id_str == "0x140":
+            val = int(hex_data, 16) / 256
+            return f"{val:.1f} °C"
+        elif id_str == "0x150":
+            return "➡️ RIGHT" if hex_data == "01" else "⬅️ LEFT"
+        elif id_str == "0x171":
+            return "ON" if hex_data == "01" else "OFF"
+        elif id_str == "0x120":
+            return "⚠️ LOW"
+        elif id_str == "0x130":
+            return "🔴 CRASH!"
+    except Exception as e:
+        return hex_data  # fallback in case of error
+    return hex_data
 
 @app.route("/api/led", methods=["POST"])
 def toggle_led():
