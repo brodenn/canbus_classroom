@@ -22,6 +22,7 @@
       border-radius: 4px;
       color: white;
     }
+
     .STM32 { background-color: #555; }
     .HighBeam { background-color: #007bff; }
     .Battery { background-color: #ffc107; color: #000; }
@@ -30,6 +31,11 @@
     .Blinker { background-color: #6f42c1; }
     .B1 { background-color: #28a745; }
     .LED { background-color: #ff9900; }
+    .Hood { background-color: #795548; }
+    .Wiper { background-color: #00bcd4; }
+    .Airbag { background-color: #ff1744; }
+    .Hazard { background-color: #ff5722; }
+    .Humidity { background-color: #3f51b5; }
     .Unknown { background-color: #aaa; }
 
     #filter {
@@ -126,10 +132,14 @@
       "Blinker": "🔁",
       "Button B1": "🟢",
       "LED Status": "💡",
+      "LED Control": "🕹️",
       "Right Stalk / Wiper / Lights": "🧼",
       "Hood & Wiper Feedback": "🛠️",
       "Blinker Ack": "↔️",
-      "Airbag / SRS": "🛡️"
+      "Airbag / SRS": "🛡️",
+      "Hazard Switch": "🚨",
+      "Battery Monitor": "🔋",
+      "Humidity Sensor": "💧"
     };
 
     const lastSeen = {};
@@ -151,6 +161,12 @@
       if (label.includes("Blinker")) return "Blinker";
       if (label.includes("Button B1")) return "B1";
       if (label.includes("LED Status")) return "LED";
+      if (label.includes("LED Control")) return "LED";
+      if (label.includes("Wiper")) return "Wiper";
+      if (label.includes("Hood")) return "Hood";
+      if (label.includes("Airbag")) return "Airbag";
+      if (label.includes("Hazard")) return "Hazard";
+      if (label.includes("Humidity")) return "Humidity";
       return "Unknown";
     }
 

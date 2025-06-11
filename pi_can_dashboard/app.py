@@ -33,7 +33,10 @@ ID_LABELS = {
     "0x2c2": "Right Stalk / Wiper / Lights",
     "0x459": "Hood & Wiper Feedback",
     "0x451": "Blinker Ack",
-    "0x666": "Airbag / SRS"
+    "0x666": "Airbag / SRS",
+    "0x450": "Hazard Light Switch (HLS)",
+    "0x100": "Battery Management System (BMS)",
+    "0x30":  "Ambient Temp & Humidity (ATU)"
 }
 
 # Logging setup
@@ -78,12 +81,10 @@ def can_listener():
                 airbag_status = msg.data[0]
                 airbag_life = msg.data[1]
 
-                # Detect life signal change
                 if airbag_life != last_airbag_life:
                     last_airbag_life = airbag_life
                     last_airbag_life_time = time.time()
 
-                # Emergency reactions can be handled here
                 if airbag_status in [0x44, 0x66]:
                     print("🚨 Airbag triggered! Status:", hex(airbag_status))
 
@@ -169,7 +170,7 @@ def decode_data(id_str, hex_data):
             return "ON" if hex_data == "01" else "OFF"
 
         elif id_str == "0x120":
-            return "⚠️ LOW"
+            return "⚠️ LOW" if hex_data == "01" else "✅ OK"
 
         elif id_str == "0x130":
             return "🔴 CRASH!"
@@ -184,6 +185,18 @@ def decode_data(id_str, hex_data):
                 }.get(status, "❓ Okänd status")
                 return f"{meaning} | Life: {life}"
             return hex_data
+
+        elif id_str == "0x450":
+            return "🚨 HAZARD ON" if hex_data.startswith("83") else "🚨 HAZARD OFF"
+
+        elif id_str == "0x100" and len(bytes_list) >= 2:
+            return "🔋 LOW VOLTAGE" if bytes_list[1] == "01" else "🔋 OK"
+
+        elif id_str == "0x30" and len(bytes_list) >= 6:
+            temp_raw = int("".join(bytes_list[:5]), 16)
+            humidity = int(bytes_list[5], 16)
+            temp_c = temp_raw / 100000
+            return f"🌡️ {temp_c:.1f} °C | 💧 {humidity}%"
 
     except Exception as e:
         print(f"⚠️ Decode error for {id_str}: {e}")
