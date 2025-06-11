@@ -198,9 +198,10 @@ def decode_data(id_str, hex_data):
 
         elif id_str == "0x30":
             if len(bytes_list) >= 6:
-                temp_str = bytes.fromhex("".join(bytes_list[:5])).decode(errors="ignore")
+                temp_raw = int("".join(bytes_list[:5]), 16)
                 humidity = int(bytes_list[5], 16)
-                return f"🌡️ {temp_str} °C | 💧 {humidity}%"
+                temp_c = temp_raw / 100000  # Now shows e.g., 21.37 °C
+                return f"🌡️ {temp_c:.2f} °C | 💧 {humidity}%"
             return f"RAW: {bytes_list}"
 
     except Exception as e:
