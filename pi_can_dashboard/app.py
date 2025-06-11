@@ -4,6 +4,7 @@ from collections import deque
 import can
 import csv
 import os
+import time
 
 app = Flask(__name__)
 buffer = deque(maxlen=100)
@@ -12,7 +13,11 @@ buffer_lock = Lock()
 # CAN constants
 LED_CONTROL_ID = 0x170
 LED_STATUS_ID = 0x171
+AIRBAG_ID = 0x666
 led_state = 0
+last_airbag_life = None
+last_airbag_life_time = time.time()
+AIRBAG_TIMEOUT = 5  # seconds
 
 # ID label mapping
 ID_LABELS = {
@@ -27,7 +32,8 @@ ID_LABELS = {
     "0x171": "LED Status",
     "0x2c2": "Right Stalk / Wiper / Lights",
     "0x459": "Hood & Wiper Feedback",
-    "0x451": "Blinker Ack"
+    "0x451": "Blinker Ack",
+    "0x666": "Airbag / SRS"
 }
 
 # Logging setup
@@ -50,26 +56,42 @@ def log_to_csv(msg):
 can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
 def can_listener():
-    global led_state
+    global led_state, last_airbag_life, last_airbag_life_time
     print("🔌 Starting CAN listener thread")
     try:
         for msg in can_bus:
             if msg is None:
                 continue
+
             entry = {
                 "id": hex(msg.arbitration_id),
                 "data": msg.data.hex(),
                 "timestamp": msg.timestamp
             }
 
-            # Update LED state if received
+            # LED status update
             if msg.arbitration_id == LED_STATUS_ID and msg.data:
                 led_state = msg.data[0]
+
+            # Airbag/SRS monitoring
+            if msg.arbitration_id == AIRBAG_ID and len(msg.data) >= 2:
+                airbag_status = msg.data[0]
+                airbag_life = msg.data[1]
+
+                # Detect life signal change
+                if airbag_life != last_airbag_life:
+                    last_airbag_life = airbag_life
+                    last_airbag_life_time = time.time()
+
+                # Emergency reactions can be handled here
+                if airbag_status in [0x44, 0x66]:
+                    print("🚨 Airbag triggered! Status:", hex(airbag_status))
 
             with buffer_lock:
                 buffer.append(entry)
             log_to_csv(entry)
             print("📥", entry)
+
     except Exception as e:
         print("❌ CAN listener error:", e)
 
@@ -151,6 +173,17 @@ def decode_data(id_str, hex_data):
 
         elif id_str == "0x130":
             return "🔴 CRASH!"
+
+        elif id_str == "0x666":
+            if len(bytes_list) >= 2:
+                status, life = bytes_list[0], bytes_list[1]
+                meaning = {
+                    "11": "✅ Allt lugnt",
+                    "44": "💥 Sidokrock – Sidoskydd aktiverat",
+                    "66": "💥 Frontalkrock – Airbags utlösta"
+                }.get(status, "❓ Okänd status")
+                return f"{meaning} | Life: {life}"
+            return hex_data
 
     except Exception as e:
         print(f"⚠️ Decode error for {id_str}: {e}")
