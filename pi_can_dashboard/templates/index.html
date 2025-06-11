@@ -22,7 +22,6 @@
       border-radius: 4px;
       color: white;
     }
-
     .STM32 { background-color: #555; }
     .HighBeam { background-color: #007bff; }
     .Battery { background-color: #ffc107; color: #000; }
@@ -37,20 +36,17 @@
     .Hazard { background-color: #ff5722; }
     .Humidity { background-color: #3f51b5; }
     .Unknown { background-color: #aaa; }
-
     #filter {
       margin-bottom: 10px;
       padding: 6px;
       font-size: 16px;
     }
-
     .dashboard {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 16px;
       margin-bottom: 30px;
     }
-
     .tile {
       background: white;
       padding: 16px;
@@ -58,20 +54,16 @@
       box-shadow: 0 0 5px rgba(0,0,0,0.1);
       text-align: center;
     }
-
     .tile h3 { margin-bottom: 10px; }
-
     .status {
       font-size: 18px;
       font-weight: bold;
     }
-
     .green { color: green; }
     .red { color: red; }
     .blue { color: #007bff; }
     .gray { color: #888; }
     .orange { color: orange; }
-
     .tile .label {
       margin-top: 6px;
       font-size: 13px;
@@ -81,12 +73,10 @@
       display: inline-block;
       border-radius: 6px;
     }
-
     #output {
       max-height: 400px;
       overflow-y: auto;
     }
-
     #ledToggleBtn {
       padding: 10px 20px;
       font-size: 16px;
@@ -97,11 +87,9 @@
       margin-bottom: 16px;
       cursor: pointer;
     }
-
     #ledToggleBtn.on {
       background-color: #28a745;
     }
-
     #ledToggleBtn:hover {
       opacity: 0.9;
     }
@@ -109,19 +97,14 @@
 </head>
 <body>
   <h2>🚗 Live CAN Module Status</h2>
-
   <button id="ledToggleBtn">💡 Toggle LED</button>
-
   <div class="dashboard" id="statusTiles"></div>
-
   <label for="filter">Filter by label:</label>
   <select id="filter">
     <option value="all">All</option>
   </select>
   <button onclick="resetFilter()">Reset</button>
-
   <div id="output"></div>
-
   <script>
     const EXPECTED_LABELS = {
       "STM32 Test": "🚗",
@@ -132,14 +115,14 @@
       "Blinker": "🔁",
       "Button B1": "🟢",
       "LED Status": "💡",
-      "LED Control": "🕹️",
-      "Right Stalk / Wiper / Lights": "🧼",
-      "Hood & Wiper Feedback": "🛠️",
-      "Blinker Ack": "↔️",
+      "LED Control": "🔹",
+      "Right Stalk / Wiper / Lights": "🮼",
+      "Hood & Wiper Feedback": "💪",
+      "Blinker Ack": "⇄",
       "Airbag / SRS": "🛡️",
-      "Hazard Switch": "🚨",
-      "Battery Monitor": "🔋",
-      "Humidity Sensor": "💧"
+      "Hazard Light Switch (HLS)": "⚠️",
+      "Battery Management System (BMS)": "🔋",
+      "Ambient Temp & Humidity (ATU)": "🌫️"
     };
 
     const lastSeen = {};
@@ -160,8 +143,7 @@
       if (label.includes("Temperature")) return "Temp";
       if (label.includes("Blinker")) return "Blinker";
       if (label.includes("Button B1")) return "B1";
-      if (label.includes("LED Status")) return "LED";
-      if (label.includes("LED Control")) return "LED";
+      if (label.includes("LED Status") || label.includes("LED Control")) return "LED";
       if (label.includes("Wiper")) return "Wiper";
       if (label.includes("Hood")) return "Hood";
       if (label.includes("Airbag")) return "Airbag";
@@ -172,14 +154,12 @@
 
     function updateDashboard(data) {
       const now = Date.now() / 1000;
-
       latest = {};
       data.forEach(msg => latest[msg.label] = msg);
 
       const html = Object.entries(EXPECTED_LABELS).map(([label, icon]) => {
         const msg = latest[label];
         const seen = msg ? now - msg.timestamp : null;
-
         let status = "...";
         let color = "gray";
 
@@ -199,6 +179,10 @@
             color = "red";
           } else if (label === "Battery Warning" && msg.data.includes("LOW")) {
             color = "orange";
+          } else if (label === "Battery Management System (BMS)") {
+            color = msg.data.includes("LOW") ? "orange" : "green";
+          } else if (label === "Ambient Temp & Humidity (ATU)") {
+            color = "blue";
           } else {
             color = "blue";
           }
@@ -215,7 +199,6 @@
       document.getElementById("statusTiles").innerHTML = html;
       document.getElementById("ledToggleBtn").textContent = ledState ? "💡 Turn OFF LED" : "💡 Turn ON LED";
       document.getElementById("ledToggleBtn").className = ledState ? "on" : "";
-
       updateFilterOptions(Object.keys(EXPECTED_LABELS));
     }
 
@@ -228,7 +211,6 @@
 
     function updateMessages() {
       const selected = document.getElementById("filter").value;
-
       return fetch("/api/can")
         .then(res => res.json())
         .then(data => {

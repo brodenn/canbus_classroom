@@ -72,11 +72,9 @@ def can_listener():
                 "timestamp": msg.timestamp
             }
 
-            # LED status update
             if msg.arbitration_id == LED_STATUS_ID and msg.data:
                 led_state = msg.data[0]
 
-            # Airbag/SRS monitoring
             if msg.arbitration_id == AIRBAG_ID and len(msg.data) >= 2:
                 airbag_status = msg.data[0]
                 airbag_life = msg.data[1]
@@ -104,12 +102,18 @@ def index():
 def api_can():
     with buffer_lock:
         data = list(buffer)
-    return jsonify([{
-        "id": msg["id"],
-        "label": ID_LABELS.get(msg["id"].lower(), "Unknown"),
-        "data": decode_data(msg["id"].lower(), msg["data"]),
-        "timestamp": msg["timestamp"]
-    } for msg in data])
+    response = []
+    for msg in data:
+        label = ID_LABELS.get(msg["id"].lower(), "Unknown")
+        decoded = decode_data(msg["id"].lower(), msg["data"])
+        print(f"📤 Sending: {msg['id']} → {label} → {decoded}")
+        response.append({
+            "id": msg["id"],
+            "label": label,
+            "data": decoded,
+            "timestamp": msg["timestamp"]
+        })
+    return jsonify(response)
 
 @app.route("/api/led", methods=["POST"])
 def toggle_led():
@@ -175,32 +179,34 @@ def decode_data(id_str, hex_data):
         elif id_str == "0x130":
             return "🔴 CRASH!"
 
-        elif id_str == "0x666":
-            if len(bytes_list) >= 2:
-                status, life = bytes_list[0], bytes_list[1]
-                meaning = {
-                    "11": "✅ Allt lugnt",
-                    "44": "💥 Sidokrock – Sidoskydd aktiverat",
-                    "66": "💥 Frontalkrock – Airbags utlösta"
-                }.get(status, "❓ Okänd status")
-                return f"{meaning} | Life: {life}"
-            return hex_data
+        elif id_str == "0x666" and len(bytes_list) >= 2:
+            status, life = bytes_list[0], bytes_list[1]
+            meaning = {
+                "11": "✅ Allt lugnt",
+                "44": "💥 Sidokrock – Sidoskydd aktiverat",
+                "66": "💥 Frontalkrock – Airbags utlösta"
+            }.get(status, "❓ Okänd status")
+            return f"{meaning} | Life: {life}"
 
         elif id_str == "0x450":
             return "🚨 HAZARD ON" if hex_data.startswith("83") else "🚨 HAZARD OFF"
 
-        elif id_str == "0x100" and len(bytes_list) >= 2:
-            return "🔋 LOW VOLTAGE" if bytes_list[1] == "01" else "🔋 OK"
+        elif id_str == "0x100":
+            if len(bytes_list) >= 2:
+                return "🔋 LOW VOLTAGE" if bytes_list[1] == "01" else "🔋 OK"
+            return f"RAW: {bytes_list}"
 
-        elif id_str == "0x30" and len(bytes_list) >= 6:
-            temp_raw = int("".join(bytes_list[:5]), 16)
-            humidity = int(bytes_list[5], 16)
-            temp_c = temp_raw / 100000
-            return f"🌡️ {temp_c:.1f} °C | 💧 {humidity}%"
+        elif id_str == "0x30":
+            if len(bytes_list) >= 6:
+                temp_raw = int("".join(bytes_list[:5]), 16)
+                humidity = int(bytes_list[5], 16)
+                temp_c = temp_raw / 100000
+                return f"🌡️ {temp_c:.1f} °C | 💧 {humidity}%"
+            return f"RAW: {bytes_list}"
 
     except Exception as e:
         print(f"⚠️ Decode error for {id_str}: {e}")
-        return hex_data
+        return f"ERR: {hex_data}"
 
     return hex_data
 
