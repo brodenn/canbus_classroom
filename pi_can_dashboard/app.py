@@ -90,7 +90,7 @@ def can_listener():
             with buffer_lock:
                 buffer.append(entry)
             log_to_csv(entry)
-            print("📥", entry)
+            print("📅", entry)
 
     except Exception as e:
         print("❌ CAN listener error:", e)
@@ -133,13 +133,13 @@ def decode_data(id_str, hex_data):
                 b0, b1 = bytes_list[0].lower(), bytes_list[1].lower()
                 status.append({
                     "01": "⬅️ Left", "02": "➡️ Right",
-                    "08": "💡 High Beam", "04": "🔦 Flash",
+                    "08": "🔥 High Beam", "04": "🔦 Flash",
                     "00": "Neutral"
                 }.get(b0, ""))
                 if b0 == "02" and b1 == "88":
                     status.append("🌀 Wiper High")
                 elif b0 == "02" and b1 == "85":
-                    status.append("🧹 Wiper Low")
+                    status.append("🪚 Wiper Low")
                 elif b0 == "00" and b1 == "82":
                     status.append("🌧️ Auto Wiper")
             return " | ".join([s for s in status if s]) or hex_data

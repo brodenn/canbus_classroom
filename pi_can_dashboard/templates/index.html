@@ -117,7 +117,23 @@
   <div id="output"></div>
 
   <script>
+    const EXPECTED_LABELS = {
+      "STM32 Test": "🚗",
+      "High Beam": "💡",
+      "Battery Warning": "🔋",
+      "Crash Trigger": "💥",
+      "Temperature Sensor": "🌡️",
+      "Blinker": "🔁",
+      "Button B1": "🟢",
+      "LED Status": "💡",
+      "Right Stalk / Wiper / Lights": "🧼",
+      "Hood & Wiper Feedback": "🛠️",
+      "Blinker Ack": "↔️",
+      "Airbag / SRS": "🛡️"
+    };
+
     const lastSeen = {};
+    let latest = {};
     let b1ToggleState = 0;
     let ledState = 0;
 
@@ -140,88 +156,58 @@
 
     function updateDashboard(data) {
       const now = Date.now() / 1000;
-      const tiles = {};
-      const latest = {};
 
-      data.forEach(msg => {
-        latest[msg.label] = msg;
-        if (!tiles[msg.label]) tiles[msg.label] = { icon: "❓", status: "...", class: "gray" };
-      });
+      latest = {};
+      data.forEach(msg => latest[msg.label] = msg);
 
-      Object.entries(latest).forEach(([label, msg]) => {
-        const t = now - msg.timestamp;
-        lastSeen[label] = t;
+      const html = Object.entries(EXPECTED_LABELS).map(([label, icon]) => {
+        const msg = latest[label];
+        const seen = msg ? now - msg.timestamp : null;
 
-        if (label === "Button B1") {
-          b1ToggleState = msg.data === "01" ? 1 : 0;
-        }
-        if (label === "LED Status") {
-          ledState = msg.data === "01" ? 1 : 0;
+        let status = "...";
+        let color = "gray";
+
+        if (msg) {
+          status = msg.data;
+          lastSeen[label] = seen;
+
+          if (label === "Button B1") {
+            b1ToggleState = msg.data === "01" ? 1 : 0;
+            status = b1ToggleState ? "PRESSED" : "Released";
+            color = b1ToggleState ? "green" : "gray";
+          } else if (label === "LED Status") {
+            ledState = msg.data === "01" ? 1 : 0;
+            status = ledState ? "ON" : "OFF";
+            color = ledState ? "green" : "gray";
+          } else if (label === "Crash Trigger" && msg.data.includes("CRASH")) {
+            color = "red";
+          } else if (label === "Battery Warning" && msg.data.includes("LOW")) {
+            color = "orange";
+          } else {
+            color = "blue";
+          }
         }
 
-        tiles[label] = {
-          icon: getIcon(label),
-          status: msg.data,
-          class: "blue"
-        };
+        return `
+          <div class="tile">
+            <h3>${icon} ${label}</h3>
+            <div class="status ${color}">${status}</div>
+            ${seen !== null ? `<div class="label">Seen ${Math.round(seen)}s ago</div>` : `<div class="label">Waiting...</div>`}
+          </div>`;
+      }).join("");
 
-        // Some overrides:
-        if (label === "Crash Trigger" && msg.data === "🔴 CRASH!") {
-          tiles[label].class = "red";
-        }
-        if (label === "Battery Warning" && msg.data.includes("LOW")) {
-          tiles[label].class = "orange";
-        }
-        if (label === "Temperature Sensor" && msg.data.includes("°C")) {
-          tiles[label].class = "blue";
-        }
-        if (label === "Button B1") {
-          tiles[label].status = b1ToggleState ? "PRESSED" : "Released";
-          tiles[label].class = b1ToggleState ? "green" : "gray";
-        }
-        if (label === "LED Status") {
-          tiles[label].status = ledState ? "ON" : "OFF";
-          tiles[label].class = ledState ? "green" : "gray";
-        }
-      });
-
+      document.getElementById("statusTiles").innerHTML = html;
       document.getElementById("ledToggleBtn").textContent = ledState ? "💡 Turn OFF LED" : "💡 Turn ON LED";
       document.getElementById("ledToggleBtn").className = ledState ? "on" : "";
 
-      document.getElementById("statusTiles").innerHTML = Object.entries(tiles).map(([label, val]) => `
-        <div class="tile">
-          <h3>${val.icon} ${label}</h3>
-          <div class="status ${val.class}">${val.status}</div>
-          ${lastSeen[label] !== undefined ? `<div class="label">Seen ${Math.round(lastSeen[label])}s ago</div>` : ""}
-        </div>
-      `).join("");
-
-      updateFilterOptions(Object.keys(tiles));
-    }
-
-    function getIcon(label) {
-      const icons = {
-        "STM32 Test": "🚗",
-        "High Beam": "💡",
-        "Battery Warning": "🔋",
-        "Crash Trigger": "💥",
-        "Temperature Sensor": "🌡️",
-        "Blinker": "🔁",
-        "Button B1": "🟢",
-        "LED Status": "💡",
-        "Right Stalk / Wiper / Lights": "🧼",
-        "Hood & Wiper Feedback": "🛠️",
-        "Blinker Ack": "↔️"
-      };
-      return icons[label] || "❓";
+      updateFilterOptions(Object.keys(EXPECTED_LABELS));
     }
 
     function updateFilterOptions(labels) {
       const filter = document.getElementById("filter");
       const current = filter.value;
       filter.innerHTML = '<option value="all">All</option>' + labels.map(label => `
-        <option value="${label}" ${label === current ? "selected" : ""}>${label}</option>`
-      ).join("");
+        <option value="${label}" ${label === current ? "selected" : ""}>${label}</option>`).join("");
     }
 
     function updateMessages() {
@@ -231,7 +217,6 @@
         .then(res => res.json())
         .then(data => {
           updateDashboard(data);
-
           const filtered = selected === "all" ? data : data.filter(m => m.label === selected);
           document.getElementById("output").innerHTML = [...filtered].reverse().map(m => `
             <div class="message">
