@@ -24,6 +24,7 @@ ID_LABELS = {
     "0x450": "Hazard Light Switch (HLS)",
     "0x451": "Blinker Ack",
     "0x459": "Hood & Wiper Feedback",
+    "0x460": "Fläkt",
     "0x666": "Airbag / SRS"
 }
 
@@ -200,6 +201,9 @@ def decode_data(id_str, hex_data):
                 temp_c = temp_raw / 100.0
                 return f"🌡️ {temp_c:.2f} °C | 💧 {humidity}%"
             return f"RAW: {bytes_list}"
+
+        elif id_str == "0x460" and len(bytes_list) >= 1:
+            return "🌀 Fläkt På" if bytes_list[0] == "01" else "❄️ Fläkt Av"
 
     except Exception as e:
         print(f"⚠️ Decode error for {id_str}: {e}")
