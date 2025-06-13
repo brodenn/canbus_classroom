@@ -143,7 +143,6 @@ def decode_data(id_str, hex_data):
             elif b0 == "00" and b1 == "90":
                 decoded.append(("Wiper", "🧴 Spolarvätska"))
 
-            # Sensor sensitivity from Byte 2
             if len(bytes_list) > 2:
                 sensitivity = {
                     "01": "Låg känslighet",
