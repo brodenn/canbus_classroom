@@ -43,7 +43,7 @@ def log_to_csv(msg):
         csv.writer(f).writerow([
             msg["timestamp"],
             msg["id"],
-            ID_LABELS.get(msg["id"].lower(), "Unknown"),
+            msg["label"],
             msg["data"]
         ])
 
@@ -77,7 +77,6 @@ def can_listener():
 
             with buffer_lock:
                 buffer.append(entry)
-            log_to_csv(entry)
             print("📅", entry)
 
     except Exception as e:
@@ -91,17 +90,41 @@ def index():
 def api_can():
     with buffer_lock:
         data = list(buffer)
+
     response = []
     for msg in data:
-        label = ID_LABELS.get(msg["id"].lower(), "Unknown")
-        decoded = decode_data(msg["id"].lower(), msg["data"])
-        print(f"📤 Sending: {msg['id']} → {label} → {decoded}")
-        response.append({
-            "id": msg["id"],
-            "label": label,
-            "data": decoded,
-            "timestamp": msg["timestamp"]
-        })
+        id_str = msg["id"].lower()
+        base_label = ID_LABELS.get(id_str, "Unknown")
+        decoded = decode_data(id_str, msg["data"])
+
+        if isinstance(decoded, list):
+            for label, value in decoded:
+                response.append({
+                    "id": msg["id"],
+                    "label": label,
+                    "data": value,
+                    "timestamp": msg["timestamp"]
+                })
+                log_to_csv({
+                    "timestamp": msg["timestamp"],
+                    "id": msg["id"],
+                    "label": label,
+                    "data": value
+                })
+        else:
+            response.append({
+                "id": msg["id"],
+                "label": base_label,
+                "data": decoded,
+                "timestamp": msg["timestamp"]
+            })
+            log_to_csv({
+                "timestamp": msg["timestamp"],
+                "id": msg["id"],
+                "label": base_label,
+                "data": decoded
+            })
+
     return jsonify(response)
 
 def decode_data(id_str, hex_data):
@@ -126,11 +149,21 @@ def decode_data(id_str, hex_data):
             return " | ".join([s for s in status if s]) or hex_data
 
         elif id_str == "0x459":
-            return {
-                "8800": "🔒 Hood Closed",
-                "8804": "🛑 Hood Open",
-                "8120": "🌀 Wiping Active"
-            }.get(hex_data, hex_data)
+            hood = "Unknown"
+            wiper = None
+
+            if hex_data.startswith("8800"):
+                hood = "🔒 Hood Closed"
+            elif hex_data.startswith("8804"):
+                hood = "🛑 Hood Open"
+            elif hex_data.startswith("8120"):
+                wiper = "🌀 Wiping Active"
+
+            result = []
+            result.append(("Hood", hood))
+            if wiper:
+                result.append(("Wiper", wiper))
+            return result
 
         elif id_str == "0x451" and len(bytes_list) >= 2:
             return {
