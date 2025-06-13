@@ -10,20 +10,16 @@ app = Flask(__name__)
 buffer = deque(maxlen=100)
 buffer_lock = Lock()
 
-# CAN constants
 AIRBAG_ID = 0x666
 last_airbag_life = None
 last_airbag_life_time = time.time()
-AIRBAG_TIMEOUT = 5  # seconds
 
-# Real classroom CAN ID labels
+# Labels for real devices
 ID_LABELS = {
     "0x30":  "Ambient Temp & Humidity (ATU)",
     "0x100": "Battery Management System (BMS)",
-    "0x110": "High Beam",
-    "0x120": "Battery Warning",
-    "0x130": "Crash Trigger",
-    "0x150": "Blinker",
+    "0x110": "High Beam / Flash",  # For completeness
+    "0x150": "Blinker Switch",     # Manually override if needed
     "0x2c2": "Right Stalk / Wiper / Lights",
     "0x450": "Hazard Light Switch (HLS)",
     "0x451": "Blinker Ack",
@@ -31,7 +27,6 @@ ID_LABELS = {
     "0x666": "Airbag / SRS"
 }
 
-# Logging setup
 LOG_PATH = "logs/can_log.csv"
 os.makedirs("logs", exist_ok=True)
 if not os.path.exists(LOG_PATH):
@@ -41,13 +36,9 @@ if not os.path.exists(LOG_PATH):
 def log_to_csv(msg):
     with open(LOG_PATH, "a", newline='') as f:
         csv.writer(f).writerow([
-            msg["timestamp"],
-            msg["id"],
-            msg["label"],
-            msg["data"]
+            msg["timestamp"], msg["id"], msg["label"], msg["data"]
         ])
 
-# CAN bus setup
 can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
 def can_listener():
@@ -67,11 +58,9 @@ def can_listener():
             if msg.arbitration_id == AIRBAG_ID and len(msg.data) >= 2:
                 airbag_status = msg.data[0]
                 airbag_life = msg.data[1]
-
                 if airbag_life != last_airbag_life:
                     last_airbag_life = airbag_life
                     last_airbag_life_time = time.time()
-
                 if airbag_status in [0x44, 0x66]:
                     print("🚨 Airbag triggered! Status:", hex(airbag_status))
 
@@ -90,8 +79,8 @@ def index():
 def api_can():
     with buffer_lock:
         data = list(buffer)
-
     response = []
+
     for msg in data:
         id_str = msg["id"].lower()
         base_label = ID_LABELS.get(id_str, "Unknown")
@@ -131,55 +120,49 @@ def decode_data(id_str, hex_data):
     try:
         bytes_list = [hex_data[i:i+2] for i in range(0, len(hex_data), 2)]
 
-        if id_str == "0x2c2":
-            status = []
-            if len(bytes_list) >= 2:
-                b0, b1 = bytes_list[0].lower(), bytes_list[1].lower()
-                status.append({
-                    "01": "⬅️ Left", "02": "➡️ Right",
-                    "08": "🔥 High Beam", "04": "🔦 Flash",
-                    "00": "Neutral"
-                }.get(b0, ""))
-                if b0 == "02" and b1 == "88":
-                    status.append("🌀 Wiper High")
-                elif b0 == "02" and b1 == "85":
-                    status.append("🪚 Wiper Low")
-                elif b0 == "00" and b1 == "82":
-                    status.append("🌧️ Auto Wiper")
-            return " | ".join([s for s in status if s]) or hex_data
+        if id_str == "0x2c2" and len(bytes_list) >= 2:
+            b0, b1 = bytes_list[0].lower(), bytes_list[1].lower()
+            decoded = []
+
+            if b0 == "01":
+                decoded.append(("Blinker Switch", "⬅️ Left"))
+            elif b0 == "02":
+                decoded.append(("Blinker Switch", "➡️ Right"))
+
+            if b0 == "08":
+                decoded.append(("High Beam / Flash", "🔥 High Beam"))
+            elif b0 == "04":
+                decoded.append(("High Beam / Flash", "🔦 Flash"))
+
+            if b0 == "02" and b1 == "88":
+                decoded.append(("Wiper Control", "🌀 Wiper High"))
+            elif b0 == "02" and b1 == "85":
+                decoded.append(("Wiper Control", "🪚 Wiper Low"))
+            elif b0 == "00" and b1 == "82":
+                decoded.append(("Wiper Control", "🌧️ Auto Wiper"))
+
+            return decoded if decoded else [("Right Stalk", hex_data)]
 
         elif id_str == "0x459":
-            hood = "Unknown"
-            wiper = None
-
-            if hex_data.startswith("8800"):
-                hood = "🔒 Hood Closed"
-            elif hex_data.startswith("8804"):
-                hood = "🛑 Hood Open"
-            elif hex_data.startswith("8120"):
-                wiper = "🌀 Wiping Active"
-
             result = []
-            result.append(("Hood", hood))
-            if wiper:
-                result.append(("Wiper", wiper))
+            if hex_data.startswith("8800"):
+                result.append(("Hood", "🔒 Hood Closed"))
+            elif hex_data.startswith("8804"):
+                result.append(("Hood", "🛑 Hood Open"))
+            elif hex_data.startswith("8120"):
+                result.append(("Wiper", "🌀 Wiping Active"))
             return result
 
         elif id_str == "0x451" and len(bytes_list) >= 2:
-            return {
+            ack = {
                 "81": "⬅️ Left Ack",
                 "82": "➡️ Right Ack",
                 "80": "↔️ None"
             }.get(bytes_list[1].lower(), hex_data)
+            return ack
 
         elif id_str == "0x150":
             return "➡️ RIGHT" if hex_data == "01" else "⬅️ LEFT"
-
-        elif id_str == "0x120":
-            return "⚠️ LOW" if hex_data == "01" else "✅ OK"
-
-        elif id_str == "0x130":
-            return "🔴 CRASH!"
 
         elif id_str == "0x666" and len(bytes_list) >= 2:
             status, life = bytes_list[0], bytes_list[1]

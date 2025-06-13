@@ -24,7 +24,6 @@
     }
     .HighBeam { background-color: #007bff; }
     .Battery { background-color: #ffc107; color: #000; }
-    .Crash { background-color: #dc3545; }
     .Temp { background-color: #17a2b8; }
     .Blinker { background-color: #6f42c1; }
     .Hood { background-color: #795548; }
@@ -87,13 +86,11 @@
   <div id="output"></div>
   <script>
     const EXPECTED_LABELS = {
-      "High Beam": "💡",
-      "Battery Warning": "🔋",
-      "Crash Trigger": "💥",
-      "Blinker": "🔁",
-      "Right Stalk / Wiper / Lights": "🮼",
+      "High Beam / Flash": "💡",
+      "Blinker Switch": "🔁",
+      "Wiper Control": "🌀",
       "Hood": "🧰",
-      "Wiper": "🌀",
+      "Wiper": "🧽",
       "Blinker Ack": "⇄",
       "Airbag / SRS": "🛡️",
       "Hazard Light Switch (HLS)": "⚠️",
@@ -112,7 +109,6 @@
     function getClass(label) {
       if (label.includes("High Beam")) return "HighBeam";
       if (label.includes("Battery")) return "Battery";
-      if (label.includes("Crash")) return "Crash";
       if (label.includes("Blinker")) return "Blinker";
       if (label.includes("Wiper")) return "Wiper";
       if (label.includes("Hood")) return "Hood";
@@ -137,11 +133,7 @@
           status = msg.data;
           lastSeen[label] = seen;
 
-          if (label === "Crash Trigger" && msg.data.includes("CRASH")) {
-            color = "red";
-          } else if (label === "Battery Warning" && msg.data.includes("LOW")) {
-            color = "orange";
-          } else if (label === "Battery Management System (BMS)") {
+          if (label === "Battery Management System (BMS)") {
             color = msg.data.includes("LOW") ? "orange" : "green";
           } else if (label === "Ambient Temp & Humidity (ATU)") {
             color = "blue";
