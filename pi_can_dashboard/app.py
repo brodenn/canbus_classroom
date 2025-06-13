@@ -18,8 +18,8 @@ last_airbag_life_time = time.time()
 ID_LABELS = {
     "0x30":  "Ambient Temp & Humidity (ATU)",
     "0x100": "Battery Management System (BMS)",
-    "0x110": "High Beam / Flash",  # For completeness
-    "0x150": "Blinker Switch",     # Manually override if needed
+    "0x110": "High Beam / Flash",
+    "0x150": "Blinker Switch",
     "0x2c2": "Right Stalk / Wiper / Lights",
     "0x450": "Hazard Light Switch (HLS)",
     "0x451": "Blinker Ack",
@@ -79,8 +79,8 @@ def index():
 def api_can():
     with buffer_lock:
         data = list(buffer)
-    response = []
 
+    response = []
     for msg in data:
         id_str = msg["id"].lower()
         base_label = ID_LABELS.get(id_str, "Unknown")
@@ -125,21 +125,34 @@ def decode_data(id_str, hex_data):
             decoded = []
 
             if b0 == "01":
-                decoded.append(("Blinker Switch", "⬅️ Left"))
+                decoded.append(("Blinker", "⬅️ Left"))
             elif b0 == "02":
-                decoded.append(("Blinker Switch", "➡️ Right"))
+                decoded.append(("Blinker", "➡️ Right"))
 
             if b0 == "08":
                 decoded.append(("High Beam / Flash", "🔥 High Beam"))
             elif b0 == "04":
                 decoded.append(("High Beam / Flash", "🔦 Flash"))
 
-            if b0 == "02" and b1 == "88":
-                decoded.append(("Wiper Control", "🌀 Wiper High"))
+            if b0 == "00" and b1 == "82":
+                decoded.append(("Wiper", "🌧️ Auto Wiper"))
             elif b0 == "02" and b1 == "85":
-                decoded.append(("Wiper Control", "🪚 Wiper Low"))
-            elif b0 == "00" and b1 == "82":
-                decoded.append(("Wiper Control", "🌧️ Auto Wiper"))
+                decoded.append(("Wiper", "🪚 Wiper Low"))
+            elif b0 == "02" and b1 == "88":
+                decoded.append(("Wiper", "🌀 Wiper High"))
+            elif b0 == "00" and b1 == "90":
+                decoded.append(("Wiper", "🧴 Spolarvätska"))
+
+            # Sensor sensitivity from Byte 2
+            if len(bytes_list) > 2:
+                sensitivity = {
+                    "01": "Låg känslighet",
+                    "05": "Medel känslighet",
+                    "09": "Hög känslighet",
+                    "0d": "Väldigt hög känslighet"
+                }.get(bytes_list[2].lower())
+                if sensitivity:
+                    decoded.append(("Wiper Sensitivity", sensitivity))
 
             return decoded if decoded else [("Right Stalk", hex_data)]
 

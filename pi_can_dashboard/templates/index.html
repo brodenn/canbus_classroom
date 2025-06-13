@@ -31,6 +31,7 @@
     .Airbag { background-color: #ff1744; }
     .Hazard { background-color: #ff5722; }
     .Humidity { background-color: #3f51b5; }
+    .Sensitivity { background-color: #009688; }
     .Unknown { background-color: #aaa; }
     #filter {
       margin-bottom: 10px;
@@ -87,8 +88,9 @@
   <script>
     const EXPECTED_LABELS = {
       "High Beam / Flash": "💡",
-      "Blinker Switch": "🔁",
+      "Blinker": "🔁",
       "Wiper Control": "🌀",
+      "Wiper Sensitivity": "🎚️",
       "Hood": "🧰",
       "Wiper": "🧽",
       "Blinker Ack": "⇄",
@@ -110,6 +112,7 @@
       if (label.includes("High Beam")) return "HighBeam";
       if (label.includes("Battery")) return "Battery";
       if (label.includes("Blinker")) return "Blinker";
+      if (label.includes("Wiper Sensitivity")) return "Sensitivity";
       if (label.includes("Wiper")) return "Wiper";
       if (label.includes("Hood")) return "Hood";
       if (label.includes("Airbag")) return "Airbag";
