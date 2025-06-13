@@ -22,14 +22,11 @@
       border-radius: 4px;
       color: white;
     }
-    .STM32 { background-color: #555; }
     .HighBeam { background-color: #007bff; }
     .Battery { background-color: #ffc107; color: #000; }
     .Crash { background-color: #dc3545; }
     .Temp { background-color: #17a2b8; }
     .Blinker { background-color: #6f42c1; }
-    .B1 { background-color: #28a745; }
-    .LED { background-color: #ff9900; }
     .Hood { background-color: #795548; }
     .Wiper { background-color: #00bcd4; }
     .Airbag { background-color: #ff1744; }
@@ -77,27 +74,10 @@
       max-height: 400px;
       overflow-y: auto;
     }
-    #ledToggleBtn {
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      margin-bottom: 16px;
-      cursor: pointer;
-    }
-    #ledToggleBtn.on {
-      background-color: #28a745;
-    }
-    #ledToggleBtn:hover {
-      opacity: 0.9;
-    }
   </style>
 </head>
 <body>
   <h2>🚗 Live CAN Module Status</h2>
-  <button id="ledToggleBtn">💡 Toggle LED</button>
   <div class="dashboard" id="statusTiles"></div>
   <label for="filter">Filter by label:</label>
   <select id="filter">
@@ -107,15 +87,10 @@
   <div id="output"></div>
   <script>
     const EXPECTED_LABELS = {
-      "STM32 Test": "🚗",
       "High Beam": "💡",
       "Battery Warning": "🔋",
       "Crash Trigger": "💥",
-      "Temperature Sensor": "🌡️",
       "Blinker": "🔁",
-      "Button B1": "🟢",
-      "LED Status": "💡",
-      "LED Control": "🔹",
       "Right Stalk / Wiper / Lights": "🮼",
       "Hood & Wiper Feedback": "💪",
       "Blinker Ack": "⇄",
@@ -127,8 +102,6 @@
 
     const lastSeen = {};
     let latest = {};
-    let b1ToggleState = 0;
-    let ledState = 0;
 
     function formatTimestamp(ts) {
       const d = new Date(ts * 1000);
@@ -136,19 +109,15 @@
     }
 
     function getClass(label) {
-      if (label.includes("STM32")) return "STM32";
       if (label.includes("High Beam")) return "HighBeam";
       if (label.includes("Battery")) return "Battery";
       if (label.includes("Crash")) return "Crash";
-      if (label.includes("Temperature")) return "Temp";
       if (label.includes("Blinker")) return "Blinker";
-      if (label.includes("Button B1")) return "B1";
-      if (label.includes("LED Status") || label.includes("LED Control")) return "LED";
       if (label.includes("Wiper")) return "Wiper";
       if (label.includes("Hood")) return "Hood";
       if (label.includes("Airbag")) return "Airbag";
       if (label.includes("Hazard")) return "Hazard";
-      if (label.includes("Humidity")) return "Humidity";
+      if (label.includes("Humidity") || label.includes("Ambient")) return "Humidity";
       return "Unknown";
     }
 
@@ -167,15 +136,7 @@
           status = msg.data;
           lastSeen[label] = seen;
 
-          if (label === "Button B1") {
-            b1ToggleState = msg.data === "01" ? 1 : 0;
-            status = b1ToggleState ? "PRESSED" : "Released";
-            color = b1ToggleState ? "green" : "gray";
-          } else if (label === "LED Status") {
-            ledState = msg.data === "01" ? 1 : 0;
-            status = ledState ? "ON" : "OFF";
-            color = ledState ? "green" : "gray";
-          } else if (label === "Crash Trigger" && msg.data.includes("CRASH")) {
+          if (label === "Crash Trigger" && msg.data.includes("CRASH")) {
             color = "red";
           } else if (label === "Battery Warning" && msg.data.includes("LOW")) {
             color = "orange";
@@ -197,8 +158,6 @@
       }).join("");
 
       document.getElementById("statusTiles").innerHTML = html;
-      document.getElementById("ledToggleBtn").textContent = ledState ? "💡 Turn OFF LED" : "💡 Turn ON LED";
-      document.getElementById("ledToggleBtn").className = ledState ? "on" : "";
       updateFilterOptions(Object.keys(EXPECTED_LABELS));
     }
 
@@ -232,10 +191,6 @@
     }
 
     document.getElementById("filter").addEventListener("change", updateMessages);
-    document.getElementById("ledToggleBtn").addEventListener("click", () => {
-      fetch("/api/led", { method: "POST" })
-        .then(res => res.ok && console.log("LED toggle sent"));
-    });
 
     async function pollLoop() {
       await updateMessages();

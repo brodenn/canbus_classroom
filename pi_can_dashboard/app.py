@@ -11,32 +11,24 @@ buffer = deque(maxlen=100)
 buffer_lock = Lock()
 
 # CAN constants
-LED_CONTROL_ID = 0x170
-LED_STATUS_ID = 0x171
 AIRBAG_ID = 0x666
-led_state = 0
 last_airbag_life = None
 last_airbag_life_time = time.time()
 AIRBAG_TIMEOUT = 5  # seconds
 
-# ID label mapping
+# Real classroom CAN ID labels
 ID_LABELS = {
-    "0x321": "STM32 Test",
+    "0x30":  "Ambient Temp & Humidity (ATU)",
+    "0x100": "Battery Management System (BMS)",
     "0x110": "High Beam",
     "0x120": "Battery Warning",
     "0x130": "Crash Trigger",
-    "0x140": "Temperature Sensor",
     "0x150": "Blinker",
-    "0x160": "Button B1",
-    "0x170": "LED Control",
-    "0x171": "LED Status",
     "0x2c2": "Right Stalk / Wiper / Lights",
-    "0x459": "Hood & Wiper Feedback",
-    "0x451": "Blinker Ack",
-    "0x666": "Airbag / SRS",
     "0x450": "Hazard Light Switch (HLS)",
-    "0x100": "Battery Management System (BMS)",
-    "0x30":  "Ambient Temp & Humidity (ATU)"
+    "0x451": "Blinker Ack",
+    "0x459": "Hood & Wiper Feedback",
+    "0x666": "Airbag / SRS"
 }
 
 # Logging setup
@@ -59,7 +51,7 @@ def log_to_csv(msg):
 can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
 def can_listener():
-    global led_state, last_airbag_life, last_airbag_life_time
+    global last_airbag_life, last_airbag_life_time
     print("🔌 Starting CAN listener thread")
     try:
         for msg in can_bus:
@@ -71,9 +63,6 @@ def can_listener():
                 "data": msg.data.hex(),
                 "timestamp": msg.timestamp
             }
-
-            if msg.arbitration_id == LED_STATUS_ID and msg.data:
-                led_state = msg.data[0]
 
             if msg.arbitration_id == AIRBAG_ID and len(msg.data) >= 2:
                 airbag_status = msg.data[0]
@@ -115,19 +104,6 @@ def api_can():
         })
     return jsonify(response)
 
-@app.route("/api/led", methods=["POST"])
-def toggle_led():
-    global led_state
-    new_state = 0 if led_state else 1
-    msg = can.Message(arbitration_id=LED_CONTROL_ID, data=[new_state], is_extended_id=False)
-    try:
-        can_bus.send(msg)
-        print(f"✅ Sent 0x170 with data: {new_state}")
-        return "", 204
-    except can.CanError as e:
-        print(f"❌ CAN send failed: {e}")
-        return "CAN send failed", 500
-
 def decode_data(id_str, hex_data):
     try:
         bytes_list = [hex_data[i:i+2] for i in range(0, len(hex_data), 2)]
@@ -163,15 +139,8 @@ def decode_data(id_str, hex_data):
                 "80": "↔️ None"
             }.get(bytes_list[1].lower(), hex_data)
 
-        elif id_str == "0x140":
-            val = int(hex_data, 16) / 256
-            return f"{val:.1f} °C"
-
         elif id_str == "0x150":
             return "➡️ RIGHT" if hex_data == "01" else "⬅️ LEFT"
-
-        elif id_str == "0x171":
-            return "ON" if hex_data == "01" else "OFF"
 
         elif id_str == "0x120":
             return "⚠️ LOW" if hex_data == "01" else "✅ OK"
