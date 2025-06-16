@@ -13,8 +13,6 @@ buffer_lock = Lock()
 AIRBAG_ID = 0x666
 last_airbag_life = None
 last_airbag_life_time = time.time()
-hazard_sync_active = False
-hazard_sync_timer = 0
 
 ID_LABELS = {
     "0x30":  "Ambient Temp & Humidity (ATU)",
@@ -26,8 +24,7 @@ ID_LABELS = {
     "0x451": "Blinker Ack",
     "0x459": "Hood & Wiper Feedback",
     "0x460": "Fläkt",
-    "0x666": "Airbag / SRS",
-    "0x999": "Hazard Sync"  # pseudo ID for sync status card
+    "0x666": "Airbag / SRS"
 }
 
 LOG_PATH = "logs/can_log.csv"
@@ -45,7 +42,7 @@ def log_to_csv(msg):
 can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
 def can_listener():
-    global last_airbag_life, last_airbag_life_time, hazard_sync_active, hazard_sync_timer
+    global last_airbag_life, last_airbag_life_time
     print("🔌 Starting CAN listener thread")
     try:
         for msg in can_bus:
@@ -67,12 +64,6 @@ def can_listener():
                 if airbag_status in [0x44, 0x66]:
                     print("🚨 Airbag triggered! Status:", hex(airbag_status))
 
-            if msg.arbitration_id == 0x451 and len(msg.data) >= 2:
-                b1 = msg.data[1]
-                if b1 in [0x80, 0x83]:
-                    hazard_sync_active = True
-                    hazard_sync_timer = time.time()
-
             with buffer_lock:
                 buffer.append(entry)
             print("📅", entry)
@@ -86,23 +77,10 @@ def index():
 
 @app.route("/api/can")
 def api_can():
-    global hazard_sync_active
     with buffer_lock:
         data = list(buffer)
 
     response = []
-    now = time.time()
-
-    if hazard_sync_active and (now - hazard_sync_timer < 2.5):
-        response.append({
-            "id": "0x999",
-            "label": "Hazard Sync Blink",
-            "data": "🔁 Synkronisering aktiv",
-            "timestamp": now
-        })
-    else:
-        hazard_sync_active = False
-
     for msg in data:
         id_str = msg["id"].lower()
         base_label = ID_LABELS.get(id_str, "Unknown")

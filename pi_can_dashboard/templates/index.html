@@ -33,7 +33,6 @@
     .Humidity { background-color: #3f51b5; }
     .Sensitivity { background-color: #009688; }
     .Fan { background-color: #9c27b0; }
-    .HazardSync { background-color: #607d8b; }
     .Unknown { background-color: #aaa; }
     #filter {
       margin-bottom: 10px;
@@ -100,8 +99,7 @@
       "Hazard Light Switch (HLS)": "⚠️",
       "Battery Management System (BMS)": "🔋",
       "Ambient Temp & Humidity (ATU)": "🌫️",
-      "Fläkt": "🌀",
-      "Hazard Sync Blink": "🪩"
+      "Fläkt": "🌀"
     };
 
     const lastSeen = {};
@@ -120,8 +118,7 @@
       if (label.includes("Wiper")) return "Wiper";
       if (label.includes("Hood")) return "Hood";
       if (label.includes("Airbag")) return "Airbag";
-      if (label.includes("Hazard Light")) return "Hazard";
-      if (label.includes("Hazard Sync")) return "HazardSync";
+      if (label.includes("Hazard")) return "Hazard";
       if (label.includes("Humidity") || label.includes("Ambient")) return "Humidity";
       if (label.includes("Fläkt")) return "Fan";
       return "Unknown";
