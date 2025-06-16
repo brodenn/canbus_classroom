@@ -186,8 +186,8 @@ def decode_data(id_str, hex_data):
             }.get(status, "❓ Okänd status")
             return f"{meaning} | Life: {life}"
 
-        elif id_str == "0x450":
-            return "🚨 HAZARD ON" if hex_data.startswith("83") else "🚨 HAZARD OFF"
+        elif id_str == "0x450" and len(bytes_list) >= 2:
+            return "🚨 HAZARD ON" if bytes_list[1].lower() == "83" else "🚨 HAZARD OFF"
 
         elif id_str == "0x100":
             if len(bytes_list) >= 2:
