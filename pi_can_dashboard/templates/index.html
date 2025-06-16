@@ -86,14 +86,14 @@
   </select>
   <button onclick="resetFilter()">Reset</button>
   <div id="output"></div>
+
   <script>
     const EXPECTED_LABELS = {
       "High Beam / Flash": "💡",
       "Blinker": "🔁",
-      "Wiper Control": "🌀",
+      "Wiper": "🧽",
       "Wiper Sensitivity": "🎚️",
       "Hood": "🧰",
-      "Wiper": "🧽",
       "Blinker Ack": "⇄",
       "Airbag / SRS": "🛡️",
       "Hazard Light Switch (HLS)": "⚠️",
@@ -113,9 +113,10 @@
     function getClass(label) {
       if (label.includes("High Beam")) return "HighBeam";
       if (label.includes("Battery")) return "Battery";
-      if (label.includes("Blinker")) return "Blinker";
+      if (label.includes("Blinker Ack")) return "Blinker";
+      if (label === "Blinker") return "Blinker";
       if (label.includes("Wiper Sensitivity")) return "Sensitivity";
-      if (label.includes("Wiper")) return "Wiper";
+      if (label === "Wiper") return "Wiper";
       if (label.includes("Hood")) return "Hood";
       if (label.includes("Airbag")) return "Airbag";
       if (label.includes("Hazard")) return "Hazard";
@@ -141,6 +142,8 @@
 
           if (label === "Battery Management System (BMS)") {
             color = msg.data.includes("LOW") ? "orange" : "green";
+          } else if (label === "Hazard Light Switch (HLS)") {
+            color = msg.data.includes("ON") ? "red" : "gray";
           } else {
             color = "blue";
           }

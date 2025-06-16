@@ -14,6 +14,9 @@ AIRBAG_ID = 0x666
 last_airbag_life = None
 last_airbag_life_time = time.time()
 
+last_hazard_time = 0
+hazard_active = False
+
 ID_LABELS = {
     "0x30":  "Ambient Temp & Humidity (ATU)",
     "0x100": "Battery Management System (BMS)",
@@ -43,6 +46,8 @@ can_bus = can.interface.Bus(channel='can0', interface='socketcan')
 
 def can_listener():
     global last_airbag_life, last_airbag_life_time
+    global last_hazard_time, hazard_active
+
     print("🔌 Starting CAN listener thread")
     try:
         for msg in can_bus:
@@ -55,6 +60,7 @@ def can_listener():
                 "timestamp": msg.timestamp
             }
 
+            # Track Airbag
             if msg.arbitration_id == AIRBAG_ID and len(msg.data) >= 2:
                 airbag_status = msg.data[0]
                 airbag_life = msg.data[1]
@@ -64,8 +70,16 @@ def can_listener():
                 if airbag_status in [0x44, 0x66]:
                     print("🚨 Airbag triggered! Status:", hex(airbag_status))
 
+            # Track Hazard ON/OFF from ID 0x450
+            if msg.arbitration_id == 0x450 and len(msg.data) >= 2:
+                b1 = msg.data[1]
+                if b1 in [0x83, 0x80]:
+                    last_hazard_time = time.time()
+                    hazard_active = True
+
             with buffer_lock:
                 buffer.append(entry)
+
             print("📅", entry)
 
     except Exception as e:
@@ -77,10 +91,16 @@ def index():
 
 @app.route("/api/can")
 def api_can():
+    global hazard_active
     with buffer_lock:
         data = list(buffer)
 
     response = []
+    now = time.time()
+
+    if hazard_active and (now - last_hazard_time > 2.5):
+        hazard_active = False
+
     for msg in data:
         id_str = msg["id"].lower()
         base_label = ID_LABELS.get(id_str, "Unknown")
@@ -180,8 +200,8 @@ def decode_data(id_str, hex_data):
             }.get(status, "❓ Okänd status")
             return f"{meaning} | Life: {life}"
 
-        elif id_str == "0x450" and len(bytes_list) >= 2:
-            return "🚨 HAZARD ON" if bytes_list[1].lower() == "83" else "🚨 HAZARD OFF"
+        elif id_str == "0x450":
+            return "🚨 HAZARD ON" if hazard_active else "🚨 HAZARD OFF"
 
         elif id_str == "0x100":
             if len(bytes_list) >= 2:
