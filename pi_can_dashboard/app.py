@@ -60,7 +60,6 @@ def can_listener():
                 "timestamp": msg.timestamp
             }
 
-            # Track Airbag
             if msg.arbitration_id == AIRBAG_ID and len(msg.data) >= 2:
                 airbag_status = msg.data[0]
                 airbag_life = msg.data[1]
@@ -70,7 +69,6 @@ def can_listener():
                 if airbag_status in [0x44, 0x66]:
                     print("🚨 Airbag triggered! Status:", hex(airbag_status))
 
-            # Track Hazard ON/OFF from ID 0x450
             if msg.arbitration_id == 0x450 and len(msg.data) >= 2:
                 b1 = msg.data[1]
                 if b1 in [0x83, 0x80]:
@@ -150,13 +148,13 @@ def decode_data(id_str, hex_data):
             elif b0 == "04": decoded.append(("High Beam / Flash", "🔦 Flash"))
 
             if b0 == "00" and b1 == "82":
-                decoded.append(("Wiper", "🌧️ Auto Wiper"))
+                decoded.append(("Wiper Mode", "🌧️ Auto Wiper"))
             elif b0 == "01" and b1 == "85":
-                decoded.append(("Wiper", "🪚 Wiper Low"))
+                decoded.append(("Wiper Mode", "🪚 Wiper Low"))
             elif b0 == "01" and b1 == "88":
-                decoded.append(("Wiper", "🌀 Wiper High"))
+                decoded.append(("Wiper Mode", "🌀 Wiper High"))
             elif b0 == "00" and b1 == "90":
-                decoded.append(("Wiper", "🧴 Spolarvätska"))
+                decoded.append(("Wiper Mode", "🧴 Spolarvätska"))
 
             if len(bytes_list) > 2:
                 sensitivity = {
@@ -177,7 +175,7 @@ def decode_data(id_str, hex_data):
             elif hex_data.startswith("8804"):
                 result.append(("Hood", "🛑 Hood Open"))
             elif hex_data.startswith("8120"):
-                result.append(("Wiper", "🌀 Wiping Active"))
+                result.append(("Wiper Activity", "🌀 Wiping Active"))
             return result
 
         elif id_str == "0x451" and len(bytes_list) >= 2:
