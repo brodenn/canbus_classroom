@@ -151,9 +151,9 @@ def decode_data(id_str, hex_data):
 
             if b0 == "00" and b1 == "82":
                 decoded.append(("Wiper", "🌧️ Auto Wiper"))
-            elif b0 == "02" and b1 == "85":
+            elif b0 == "01" and b1 == "85":
                 decoded.append(("Wiper", "🪚 Wiper Low"))
-            elif b0 == "02" and b1 == "88":
+            elif b0 == "01" and b1 == "88":
                 decoded.append(("Wiper", "🌀 Wiper High"))
             elif b0 == "00" and b1 == "90":
                 decoded.append(("Wiper", "🧴 Spolarvätska"))
