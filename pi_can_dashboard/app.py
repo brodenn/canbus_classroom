@@ -208,11 +208,12 @@ def decode_data(id_str, hex_data):
 
         elif id_str == "0x30":
             if len(bytes_list) >= 6:
-                temp_raw = int("".join(bytes_list[:5]), 16)
+                raw = "".join(bytes_list[:5])  # 10 hex digits = 40-bit
+                temp_c = int(raw[:-2]) + int(raw[-2:]) / 100
                 humidity = int(bytes_list[5], 16)
-                temp_c = temp_raw / 100.0
                 return f"🌡️ {temp_c:.2f} °C | 💧 {humidity}%"
             return f"RAW: {bytes_list}"
+
 
         elif id_str == "0x460" and len(bytes_list) >= 1:
             return "🌀 Fläkt På" if bytes_list[0] == "01" else "❄️ Fläkt Av"
