@@ -208,11 +208,12 @@ def decode_data(id_str, hex_data):
 
         elif id_str == "0x30":
             if len(bytes_list) >= 6:
-                # Anta att byte 0 är temperatur i °C direkt
-                temp_raw = int(bytes_list[0], 16)
+                temp_raw = int("".join(bytes_list[:5]), 16)
                 humidity = int(bytes_list[5], 16)
-                return f"🌡️ {temp_raw} °C | 💧 {humidity}%"
+                temp_c = temp_raw / 100000.0  # Adjust back to your old scale
+                return f"🌡️ {temp_c:.2f} °C | 💧 {humidity}%"
             return f"RAW: {bytes_list}"
+
 
 
 
