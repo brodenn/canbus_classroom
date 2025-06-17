@@ -210,7 +210,7 @@ def decode_data(id_str, hex_data):
             if len(bytes_list) >= 6:
                 temp_raw = int("".join(bytes_list[:5]), 16)
                 humidity = int(bytes_list[5], 16)
-                temp_c = temp_raw / 1000000000.0  # Delar med 100000 istället för 100
+                temp_c = temp_raw / 10000000000.0  # Delar med 100000 istället för 100
                 return f"🌡️ {temp_c:.1f} °C | 💧 {humidity}%"
             return f"RAW: {bytes_list}"
 
