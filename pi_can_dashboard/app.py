@@ -207,12 +207,13 @@ def decode_data(id_str, hex_data):
             return f"RAW: {bytes_list}"
 
         elif id_str == "0x30":
-            if len(bytes_list) >= 6:
-                raw = "".join(bytes_list[:5])  # 10 hex digits = 40-bit
-                temp_c = int(raw[:-2]) + int(raw[-2:]) / 100
-                humidity = int(bytes_list[5], 16)
+            if len(bytes_list) >= 3:
+                temp_raw = int(bytes_list[0] + bytes_list[1], 16)  # 2 bytes
+                humidity = int(bytes_list[2], 16)
+                temp_c = temp_raw / 100.0
                 return f"🌡️ {temp_c:.2f} °C | 💧 {humidity}%"
             return f"RAW: {bytes_list}"
+
 
 
         elif id_str == "0x460" and len(bytes_list) >= 1:
